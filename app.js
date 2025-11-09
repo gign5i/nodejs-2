@@ -5,6 +5,7 @@ const { Worker } = require('worker_threads');
 
 const { PerformanceObserver, performance } = require('perf_hooks');
 const { boolean } = require('zod');
+const { resolve } = require('path');
 
 const performanceObserver = new PerformanceObserver((items) => {
   items.getEntries().map((element) => 
@@ -26,15 +27,26 @@ function firstFunc() {
 function secondFunc() {
   performance.mark('start');
   const groupedArrays = separateArray(FIRST_ARRAY, KIR_LENGTH);
-  groupedArrays.filter((group) => group.length > 0).map((group, idx) => {
+
+  const newPromise = groupedArrays.filter((group) => group.length > 0).map((group, idx) => {
+
+    return new Promise((resolve) => {
     const worker = new Worker('./worker', {
       workerData: group,
     });
-
-    worker.on('message', (message) => console.log(`worker - ${idx + 1}: `, message));
+    worker.on('message', (message) => {
+      console.log(`worker - ${idx + 1}: `, message)
+      resolve(message);
+    });
+    })
   });
-  performance.mark('end');
-  performance.measure('test-2', 'start', 'end');
+
+
+  Promise.all(newPromise).then((result) => {
+    performance.mark('end');
+    performance.measure('test-2', 'start', 'end');
+    console.log('Result: ', result.reduce((acc, value) => acc + value, 0));
+  })
 }
 
 
